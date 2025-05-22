@@ -44,3 +44,80 @@ def share_event(
 
     db.commit()
     return {"message": "Shared successfully"}
+
+
+@router.get("/{id}/permissions")
+def get_event_permissions(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Only owners can see permissions
+    event = db.query(Event).filter(Event.id == id).first()
+    if not event or event.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Only owners can view permissions")
+
+    shared = db.query(SharedAccess).filter(SharedAccess.event_id == id).all()
+    return [
+        {
+            "user_id": s.user_id,
+            "role": s.role
+        } for s in shared
+    ]
+
+
+@router.put("/{id}/permissions/{user_id}")
+def update_permission(
+    id: int,
+    user_id: int,
+    role: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if role not in ["viewer", "editor"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    event = db.query(Event).filter(Event.id == id).first()
+    if not event or event.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Only owners can update permissions")
+
+    access = db.query(SharedAccess).filter(
+        SharedAccess.event_id == id,
+        SharedAccess.user_id == user_id
+    ).first()
+
+    if not access:
+        raise HTTPException(
+            status_code=404, detail="User does not have access")
+
+    access.role = role
+    db.commit()
+    return {"message": "Role updated successfully"}
+
+
+@router.delete("/{id}/permissions/{user_id}")
+def remove_permission(
+    id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    event = db.query(Event).filter(Event.id == id).first()
+    if not event or event.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Only owners can remove access")
+
+    access = db.query(SharedAccess).filter(
+        SharedAccess.event_id == id,
+        SharedAccess.user_id == user_id
+    ).first()
+
+    if not access:
+        raise HTTPException(
+            status_code=404, detail="User does not have access")
+
+    db.delete(access)
+    db.commit()
+    return {"message": "Access removed successfully"}

@@ -42,6 +42,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 app.include_router(sharing.router, prefix="/api/events", tags=["Sharing"])
 app.include_router(event.router, prefix="/api/events", tags=["Events"])
+app.include_router(event.router, prefix="/api/events", tags=["Diff"])
 
 
 @app.get("/")

@@ -156,8 +156,139 @@ def get_event_history(
     history = db.query(EventHistory).filter(EventHistory.event_id == id).all()
     return [
         {
+            "id": h.id,
             "change_time": h.change_time,
             "changed_by": h.changed_by,
             "previous_data": json.loads(h.previous_data)
         } for h in history
     ]
+
+
+@router.get("/{id}/diff/{version1_id}/{version2_id}")
+def diff_event_versions(
+    id: int,
+    version1_id: int,
+    version2_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    role = get_user_event_role(current_user, id, db)
+    if role not in ["owner", "editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    v1 = db.query(EventHistory).filter(EventHistory.id ==
+                                       version1_id, EventHistory.event_id == id).first()
+    v2 = db.query(EventHistory).filter(EventHistory.id ==
+                                       version2_id, EventHistory.event_id == id).first()
+
+    if not v1 or not v2:
+        raise HTTPException(
+            status_code=404, detail="One or both versions not found")
+
+    data1 = json.loads(v1.previous_data)
+    data2 = json.loads(v2.previous_data)
+
+    diff = {}
+    for key in set(data1.keys()).union(data2.keys()):
+        val1 = data1.get(key)
+        val2 = data2.get(key)
+        if val1 != val2:
+            diff[key] = {
+                "version1": val1,
+                "version2": val2
+            }
+
+    return {
+        "event_id": id,
+        "diff": diff,
+        "version1_time": v1.change_time,
+        "version2_time": v2.change_time
+    }
+
+
+@router.post("/{id}/rollback/{version_id}", response_model=EventOut)
+def rollback_event(
+    id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    role = get_user_event_role(current_user, id, db)
+    if role != "owner":
+        raise HTTPException(status_code=403, detail="Only owners can rollback")
+
+    event = db.query(Event).filter(Event.id == id).first()
+    version = db.query(EventHistory).filter(
+        EventHistory.id == version_id, EventHistory.event_id == id).first()
+
+    if not event or not version:
+        raise HTTPException(
+            status_code=404, detail="Event or version not found")
+
+    data = json.loads(version.previous_data)
+    for field, value in data.items():
+        setattr(event, field, value)
+
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.get("/{id}/changelog")
+def get_event_changelog(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Ensure user has access
+    role = get_user_event_role(current_user, id, db)
+    if role not in ["owner", "editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
+@router.get("/{id}/history/{version_id}")
+def get_specific_event_version(
+    id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    role = get_user_event_role(current_user, id, db)
+    if role not in ["owner", "editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    version = db.query(EventHistory).filter(
+        EventHistory.id == version_id,
+        EventHistory.event_id == id
+    ).first()
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    return {
+        "id": version.id,
+        "event_id": version.event_id,
+        "change_time": version.change_time,
+        "changed_by": version.changed_by,
+        "data": json.loads(version.previous_data)
+    }
+
+    # Fetch history
+    history_entries = db.query(EventHistory).filter(
+        EventHistory.event_id == id
+    ).order_by(EventHistory.change_time.asc()).all()
+
+    # Build changelog output
+    changelog = []
+    for entry in history_entries:
+        data = json.loads(entry.previous_data)
+        changelog.append({
+            "changed_by": entry.changed_by,
+            "change_time": entry.change_time,
+            "changes": data  # This is the old state before update
+        })
+
+    return {
+        "event_id": id,
+        "changelog": changelog
+    }

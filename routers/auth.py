@@ -8,6 +8,11 @@ from core.security import get_password_hash
 from fastapi.security import OAuth2PasswordRequestForm
 from core.security import verify_password, create_access_token
 from datetime import timedelta
+from core.config import settings
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from core.security import create_refresh_token
+
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -45,15 +50,38 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+@router.post("/refresh")
+def refresh_token(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # issue new access token
+        new_token = create_access_token(data={"sub": username})
+        return {"access_token": new_token, "token_type": "bearer"}
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not refresh token")
+
+
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, message="Invalid credentials")
 
-    access_token = create_access_token(
-        data={"sub": user.username},  # sub = subject
-        expires_delta=timedelta(minutes=30)
-    )
+    access_token = create_access_token(data={"sub": user.username})
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(data={"sub": user.username})  # new
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
