@@ -28,7 +28,7 @@ def share_event(
 
     if not event or event.created_by != current_user.id:
         raise HTTPException(
-            status_code=403, detail="Only owner can share this event")
+            status_code=403, message="Only owner can share this event")
 
     existing = db.query(SharedAccess).filter(
         SharedAccess.user_id == req.user_id,

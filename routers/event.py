@@ -81,7 +81,7 @@ def get_event_by_id(
 ):
     role = get_user_event_role(current_user, id, db)
     if role is None:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=403, message="Access denied")
 
     event = db.query(Event).filter(Event.id == id).first()
     return event
@@ -98,11 +98,11 @@ def update_event(
 ):
     role = get_user_event_role(current_user, id, db)
     if role not in ["owner", "editor"]:
-        raise HTTPException(status_code=403, detail="No edit access")
+        raise HTTPException(status_code=403, message="No edit access")
 
     event = db.query(Event).filter(Event.id == id).first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, message="Event not found")
 
     event_data = {
         "title": event.title,
@@ -133,11 +133,11 @@ def delete_event(
 ):
     role = get_user_event_role(current_user, id, db)
     if role != "owner":
-        raise HTTPException(status_code=403, detail="Only owners can delete")
+        raise HTTPException(status_code=403, message="Only owners can delete")
 
     event = db.query(Event).filter(Event.id == id).first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, message="Event not found")
 
     db.delete(event)
     db.commit()
@@ -151,7 +151,7 @@ def get_event_history(
 ):
     role = get_user_event_role(current_user, id, db)
     if role not in ["owner", "editor", "viewer"]:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=403, message="Access denied")
 
     history = db.query(EventHistory).filter(EventHistory.event_id == id).all()
     return [
