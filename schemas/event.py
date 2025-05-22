@@ -27,4 +27,4 @@ class EventOut(EventBase):
     created_by: int
 
     class Config:
-        from_attributes = True  # Pydantic v2
+        orm_mode = True

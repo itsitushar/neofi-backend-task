@@ -6,7 +6,7 @@ from schemas.shared_access import ShareRequest
 from models.user import User
 from models.event import Event
 from core.auth import get_current_user
-
+from schemas.user import PermissionUpdate
 router = APIRouter()
 
 
@@ -71,10 +71,12 @@ def get_event_permissions(
 def update_permission(
     id: int,
     user_id: int,
+    update: PermissionUpdate,
     role: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    role = update.role
     if role not in ["viewer", "editor"]:
         raise HTTPException(status_code=400, detail="Invalid role")
 

@@ -58,7 +58,7 @@ def create_multiple_events(
     ]
     db.add_all(new_events)
     db.commit()
-    return new_events
+    return [EventOut.from_orm(e) for e in new_events]
 
 
 @router.get("/", response_model=list[EventOut])

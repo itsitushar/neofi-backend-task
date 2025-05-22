@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from pydantic import BaseModel, EmailStr  # type: ignore
 
 
@@ -16,3 +17,7 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PermissionUpdate(BaseModel):
+    role: str
