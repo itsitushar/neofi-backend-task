@@ -51,7 +51,7 @@ A FastAPI-based backend system that supports user authentication, event manageme
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/<itsitushar>/neofi-backend.git
+git clone https://github.com/itsitushar/neofi-backend.git
 cd neofi-backend
 python3 -m venv venv
 source venv/bin/activate
