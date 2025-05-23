@@ -6,7 +6,7 @@ from schemas.event import EventCreate, EventOut, EventUpdate, EventBatchCreate
 from core.auth import get_current_user
 from models.user import User
 from core.permissions import get_user_event_role
-from models.EventHistory import EventHistory
+from models.event_history import EventHistory
 import json
 
 router = APIRouter()
@@ -18,8 +18,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# POST /api/events
 
 
 @router.post("/", response_model=EventOut)
@@ -38,8 +36,6 @@ def create_event(
     db.commit()
     db.refresh(new_event)
     return new_event
-
-# POST /api/events/batch
 
 
 @router.post("/batch", response_model=list[EventOut])
@@ -70,9 +66,6 @@ def get_events(
     return events
 
 
-# GET /api/events/{id}
-
-
 @router.get("/{id}", response_model=EventOut)
 def get_event_by_id(
     id: int,
@@ -85,8 +78,6 @@ def get_event_by_id(
 
     event = db.query(Event).filter(Event.id == id).first()
     return event
-
-# PUT /api/events/{id}
 
 
 @router.put("/{id}", response_model=EventOut)
@@ -121,8 +112,6 @@ def update_event(
     db.commit()
     db.refresh(event)
     return event
-
-# DELETE /api/events/{id}
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -234,18 +223,6 @@ def rollback_event(
     return event
 
 
-@router.get("/{id}/changelog")
-def get_event_changelog(
-    id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    # Ensure user has access
-    role = get_user_event_role(current_user, id, db)
-    if role not in ["owner", "editor", "viewer"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-
 @router.get("/{id}/history/{version_id}")
 def get_specific_event_version(
     id: int,
@@ -272,6 +249,18 @@ def get_specific_event_version(
         "changed_by": version.changed_by,
         "data": json.loads(version.previous_data)
     }
+
+
+@router.get("/{id}/changelog")
+def get_event_changelog(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Ensure user has access
+    role = get_user_event_role(current_user, id, db)
+    if role not in ["owner", "editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Fetch history
     history_entries = db.query(EventHistory).filter(

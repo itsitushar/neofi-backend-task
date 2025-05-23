@@ -11,7 +11,7 @@ class EventHistory(Base):
     event_id = Column(Integer, ForeignKey("events.id"))
     changed_by = Column(Integer, ForeignKey("users.id"))
     change_time = Column(DateTime, default=datetime.utcnow)
-    previous_data = Column(Text)  # stored as JSON string
+    previous_data = Column(Text)
 
     event = relationship("Event", back_populates="history")
     user = relationship("User")

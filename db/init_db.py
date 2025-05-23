@@ -1,8 +1,8 @@
 from db.session import engine, Base
-from models import user  # import all your models so they're registered
+from models import user
 from models import event
 from models import shared_access
-from models import EventHistory
+from models import event_history
 
 
 def init():
